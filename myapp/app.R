@@ -1,12 +1,4 @@
-#
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    https://shiny.posit.co/
-#
-
+# packages needed
 library(shiny)
 library(bslib)
 library(httr)
@@ -14,22 +6,6 @@ library(tidyverse)
 library(ggplot2)
 library(jsonlite)
 library(DT)
-
-#gives how many breweries there are within certain parameters
-brewery_metadata <- function(state = NULL, city = NULL, type = NULL, name = NULL) {
-  
-  result <- httr::GET(url = 'https://api.openbrewerydb.org/v1/breweries/meta', 
-                      query = list(
-                        by_state = state,
-                        by_city = city,
-                        by_type = type,
-                        by_name = name
-                      ))
-  parsed_data <- as_tibble(fromJSON(rawToChar(result$content)))
-  
-  return(parsed_data)
-}
-
 
 # Define UI
 ui <- fluidPage(
