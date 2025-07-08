@@ -102,19 +102,27 @@ ui <- fluidPage(
                                         choices = c('Contingency Table', 'Numerical Summary', 'Graphs'),
                                         selected = 'Contingency Table'
                            ),
-                           conditionalPanel(
-                             condition = 'input.summary_type == "Contingency Table"',
-                             selectInput(inputId = 'var_1', label = strong('Variable 1'),
-                                         choices = c('state', 'city', 'brewery_type')),
-                             selectInput(inputId = 'var_2', label = strong('Variable 2'),
-                                         choices = c('state', 'city', 'brewery_type'))
-                           )
+                conditionalPanel(
+                  condition = 'input.summary_type == "Contingency Table"',
+                  selectInput(inputId = 'var_1', label = strong('Variable 1'),
+                              choices = c('state', 'city', 'brewery_type')),
+                  selectInput(inputId = 'var_2', label = strong('Variable 2'),
+                              choices = c('state', 'city', 'brewery_type'))
+                           ),
+                conditionalPanel(
+                  condition = 'input.summary_type == "Numerical Summary"',
+                  selectInput(inputId = 'var', label = strong('Variable'),
+                              choices = c('state', 'city', 'brewery_type'))
+                )
+                 
                   ),
                mainPanel(conditionalPanel('input.summary_type == "Contingency Table"',
-                                          tableOutput('contingency_table')))
+                                          tableOutput('contingency_table')),
+                         conditionalPanel('input.summary_type == "Numerical Summary"',
+                                          tableOutput('numeric_summaries'))
     )
   )
-))
+)))
 
 # Define server
 server <- function(input, output, session) {
@@ -204,6 +212,16 @@ server <- function(input, output, session) {
   #contingency table
   output$contingency_table <- renderTable(
     table(brewery_data()[[input$var_1]], brewery_data()[[input$var_2]])
+  )
+  
+  #numeric summaries
+  output$numeric_summaries <- renderTable(
+    brewery_data() %>%
+      mutate(name_length = nchar(name)) %>%
+      group_by(input$var) %>%
+      summarise(min_name_length = min(name_length, na.rm = TRUE),
+                avg_name_length = mean(name_length, na.rm = TRUE),
+                max_name_length = max(name_length, na.rm = TRUE))
   )
   
 }
