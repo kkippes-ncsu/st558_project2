@@ -33,8 +33,8 @@ ui <- fluidPage(
     tabPanel('Data Download',
              sidebarLayout(
                sidebarPanel(
-                 radioButtons('selection_type', "Choose View Type:",
-                              choices = c("Filtered", "Random")),
+                 radioButtons('selection_type', 'Choose View Type:',
+                              choices = c('Filtered', 'Random')),
                  conditionalPanel(
                    condition = 'input.selection_type == "Filtered"',
                    h3('Choose a subset of breweries you want information for!'),
@@ -55,17 +55,17 @@ ui <- fluidPage(
                    textInput(inputId = 'name', label = strong('Name Contains'),
                              value = ''),
                    #add a download button
-                   downloadButton("download_filtered_data", "Download Results")
+                   downloadButton('download_filtered_data', 'Download Results')
                  ),
                  conditionalPanel(
                    condition = 'input.selection_type == "Random"',
                    h3('Randomly get your desired number of breweries'),
                    #Disclaimer
                    h5('*Please note that the API only allows a maximum of 50 results to be returned'),
-                   sliderInput(inputId = "n", label = "Number of Breweries",
+                   sliderInput(inputId = 'n', label = 'Number of Breweries',
                                min = 1, max = 50, value = 1, step = 1),
                    #add a download button
-                   downloadButton("download_random_data", "Download Results")
+                   downloadButton('download_random_data', 'Download Results')
                  )
               ),
                #output the table to the main panel
@@ -82,9 +82,39 @@ ui <- fluidPage(
              )),
     #data exploration tab
     tabPanel('Data Exploration',
-             )
+             sidebarLayout(
+               sidebarPanel(
+                 h4('Choose a subset of breweries you want information for!'),
+                 #Disclaimer
+                 h5('*Please note that the API only allows a maximum of 200 results to be returned'),
+                 # Select state
+                 selectInput(inputId = 'state', label = strong('Select State'), 
+                             choices = c('', state.name),
+                             selected = ''),
+                 #type in city
+                 textInput(inputId = 'city', label = strong('Find City'),
+                           value = ''),
+                 #select type
+                 selectInput(inputId = 'type', label = strong('Select Type'), 
+                             choices = c('', 'micro', 'nano', 'regional','brewpub', 'large','planning','bar','contract','proprietor','closed'),
+                             selected = ''),
+                 radioButtons('summary_type', 'Choose Summary Type:',
+                                        choices = c('Contingency Table', 'Numerical Summary', 'Graphs'),
+                                        selected = 'Contingency Table'
+                           ),
+                           conditionalPanel(
+                             condition = 'input.summary_type == "Contingency Table"',
+                             selectInput(inputId = 'var_1', label = strong('Variable 1'),
+                                         choices = c('state', 'city', 'brewery_type')),
+                             selectInput(inputId = 'var_2', label = strong('Variable 2'),
+                                         choices = c('state', 'city', 'brewery_type'))
+                           )
+                  ),
+               mainPanel(conditionalPanel('input.summary_type == "Contingency Table"',
+                                          tableOutput('contingency_table')))
+    )
   )
-)
+))
 
 # Define server
 server <- function(input, output, session) {
@@ -169,6 +199,11 @@ server <- function(input, output, session) {
     content = function(file) {
       readr::write_csv(random_brewery(), file)
     }
+  )
+  
+  #contingency table
+  output$contingency_table <- renderTable(
+    table(brewery_data()[[input$var_1]], brewery_data()[[input$var_2]])
   )
   
 }
