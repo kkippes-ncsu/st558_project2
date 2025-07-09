@@ -6,6 +6,7 @@ library(tidyverse)
 library(ggplot2)
 library(jsonlite)
 library(DT)
+library(maps)
 
 # Define UI
 ui <- fluidPage(
@@ -84,6 +85,7 @@ ui <- fluidPage(
     tabPanel('Data Exploration',
              sidebarLayout(
                sidebarPanel(
+                 #allow user to subset data for the summaries
                  h4('Choose a subset of breweries you want information for!'),
                  #Disclaimer
                  h5('*Please note that the API only allows a maximum of 200 results to be returned'),
@@ -98,10 +100,12 @@ ui <- fluidPage(
                  selectInput(inputId = 'type', label = strong('Select Type'), 
                              choices = c('', 'micro', 'nano', 'regional','brewpub', 'large','planning','bar','contract','proprietor','closed'),
                              selected = ''),
+                 #allow user to select summary type
                  radioButtons('summary_type', 'Choose Summary Type:',
                                         choices = c('Contingency Table', 'Numerical Summary', 'Graphs'),
                                         selected = 'Contingency Table'
                            ),
+                 #condition for contingency table
                 conditionalPanel(
                   condition = 'input.summary_type == "Contingency Table"',
                   selectInput(inputId = 'var_1', label = strong('Variable 1'),
@@ -109,17 +113,31 @@ ui <- fluidPage(
                   selectInput(inputId = 'var_2', label = strong('Variable 2'),
                               choices = c('state', 'city', 'brewery_type'))
                            ),
+                #conditional for numerical summary
                 conditionalPanel(
                   condition = 'input.summary_type == "Numerical Summary"',
-                  selectInput(inputId = 'var', label = strong('Variable'),
+                  selectInput(inputId = 'var', label = strong('Group By'),
                               choices = c('state', 'city', 'brewery_type'))
+                ),
+                #condition for graphs
+                conditionalPanel(
+                  condition = 'input.summary_type == "Graphs"',
+                  #Choose plot type
+                  selectInput(inputId = 'plot_type', label = strong('Choose Plot Type'),
+                              choices = c('Bar Chart', 'Boxplot', 'Location', 'Heatmap')),
+                  #add facet option
+                  selectInput(inputId = 'facet_option', label = strong('Facet by (Optional):'),
+                              choices = c('None', 'state', 'brewery_type', 'city'))
                 )
                  
                   ),
-               mainPanel(conditionalPanel('input.summary_type == "Contingency Table"',
+               #main panel for data exploration with conditionals
+               mainPanel(conditionalPanel(condition = 'input.summary_type == "Contingency Table"',
                                           tableOutput('contingency_table')),
-                         conditionalPanel('input.summary_type == "Numerical Summary"',
-                                          tableOutput('numeric_summaries'))
+                         conditionalPanel(condition = 'input.summary_type == "Numerical Summary"',
+                                          DT::dataTableOutput('numeric_summaries')),
+                         conditionalPanel(condition = 'input.summary_type == "Graphs"',
+                                          plotOutput('all_plots'))
     )
   )
 )))
@@ -215,13 +233,89 @@ server <- function(input, output, session) {
   )
   
   #numeric summaries
-  output$numeric_summaries <- renderTable(
+  output$numeric_summaries <- DT::renderDataTable(
     brewery_data() %>%
       mutate(name_length = nchar(name)) %>%
-      group_by(input$var) %>%
-      summarise(min_name_length = min(name_length, na.rm = TRUE),
-                avg_name_length = mean(name_length, na.rm = TRUE),
-                max_name_length = max(name_length, na.rm = TRUE))
+      group_by(.data[[input$var]]) %>%
+      summarise(`Minimum Name Length` = min(name_length, na.rm = TRUE),
+                `Average Name Length` = mean(name_length, na.rm = TRUE),
+                `Std. Dev. Name Length`= sd(name_length, na.rm = TRUE),
+                `Maximum Name Length` = max(name_length, na.rm = TRUE))
+  )
+  
+  #graphical plots
+  output$all_plots <- renderPlot( {
+    df <- brewery_data() %>%
+      filter(state %in% state.name)
+    #require a plot type
+    req(input$plot_type)
+    #bar chart
+    if (input$plot_type == 'Bar Chart') {
+      g <- ggplot(df, aes(x = brewery_type), fill = state) +
+        geom_bar(fill = 'blue') +
+        labs(title = 'Brewery Type Bar Chart',
+             x = 'Brewery Type',
+             y = 'Count') +
+        theme_minimal()
+    }
+    #boxplot
+    else if (input$plot_type == 'Boxplot') {
+      #get name length
+      df_name <- df %>%
+        filter(!is.na(name), !is.na(state)) %>%
+        mutate(name_length = nchar(name))
+      
+      g <- ggplot(df_name, aes(x = brewery_type, y = name_length)) +
+        geom_boxplot(fill = 'orangered') +
+        labs(title = 'Boxplot of Name Length By Brewery Type',
+            x = 'Type',
+            y = 'Name Length (Number of Characters)') +
+        theme_minimal() +
+        # Slanting the x-axis labels so they will fit on the plot
+        theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10))
+    }
+    #map locations
+    else if (input$plot_type == 'Location') {
+      #get the map
+      usa <- map_data("state")
+      #clean the data
+      df_loc <- df %>%
+        filter(!is.na(latitude), !is.na(longitude)) %>%
+        mutate(state = tolower(state))
+      
+      g <- ggplot() + 
+        geom_polygon(data = usa, aes(x = long, y = lat, group = group),
+                          fill = 'white', color = 'black') +
+        geom_point(data = df_loc, aes(x = longitude, y = latitude, color = brewery_type),
+                   alpha = 0.75, size = 2) +
+        labs(title = 'Map of Breweries',
+             x = 'Longitude',
+             y = 'Latitude') +
+        theme_minimal()
+      
+    }
+    #heatmap
+    else if (input$plot_type == 'Heatmap') {
+      df_heat <- df %>%
+        filter(!is.na(state), !is.na(brewery_type)) %>%
+        count(state, brewery_type)
+      
+      g <- ggplot(df_heat, aes(x = brewery_type, y = state, fill = n)) +
+        geom_tile(color = 'white') +
+        scale_fill_gradient(low = 'lightgreen', high = 'darkgreen') +
+        labs(title = 'Heatmap of State and Brewery Type',
+             x = 'Brewery Type',
+             y = 'State') +
+        theme_minimal() +
+        theme(axis.text.y = element_text(hjust = 1, size = 10))
+    }
+    
+    #add facet capability 
+    if (input$facet_option != 'None') {
+      g <- g + facet_wrap(as.formula(paste('~', input$facet_option)))
+    }
+    g
+  }
   )
   
 }
