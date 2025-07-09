@@ -256,7 +256,8 @@ server <- function(input, output, session) {
         labs(title = 'Brewery Type Bar Chart',
              x = 'Brewery Type',
              y = 'Count') +
-        theme_minimal()
+        theme_minimal() +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10))
     }
     #boxplot
     else if (input$plot_type == 'Boxplot') {
