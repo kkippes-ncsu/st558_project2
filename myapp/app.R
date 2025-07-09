@@ -1,3 +1,7 @@
+### author: Kayla Kippes
+### date: 2025-07-08
+### purpose: project 2 shiny app
+
 # packages needed
 library(shiny)
 library(bslib)
