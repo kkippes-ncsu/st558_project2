@@ -6,6 +6,6 @@ Purpose: This app accesses an API from the Open Brewery Database. It gives detai
 
 Packages Required to run App: shiny, bslib, httr, tidyverse, ggplot2, jsonlite, DT, maps
 
-Line to install these packages: install.packages(c('shiny','bslib', 'httr', 'tideyverse', 'ggplot2', 'jsonlite', 'DT', 'maps))
+Line to install these packages: install.packages(c('shiny','bslib', 'httr', 'tideyverse', 'ggplot2', 'jsonlite', 'DT', 'maps'))
 
 shiny::runGitHub(repo = 'st558_project2', username = 'kkippes-ncsu', subdir = 'myapp', ref = 'main')
